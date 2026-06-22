@@ -14,28 +14,46 @@ async function getFlagDescription(url) {
     const dom = new JSDOM(response.data);
     const document = dom.window.document;
     
-    // Look for flag status in common Facebook post patterns
-    const postText = document.body.textContent.toLowerCase();
+    // Find the first post on the page (most recent)
+    // Facebook posts are typically in article or div elements with data attributes
+    const posts = document.querySelectorAll('[data-testid="post"], article, [role="article"]');
+    
+    if (posts.length === 0) {
+      throw new Error('No posts found on the page. The page structure may have changed.');
+    }
+    
+    // Get the first (most recent) post
+    const firstPost = posts[0];
+    const postText = firstPost.textContent.toLowerCase();
+    
+    // Extract timestamp if available
+    const timeElement = firstPost.querySelector('time, [aria-label*="time"], [data-utime]');
+    let timestamp = 'timestamp not found';
+    if (timeElement) {
+      timestamp = timeElement.getAttribute('aria-label') || timeElement.textContent || timeElement.getAttribute('data-utime');
+    }
+    console.log(`[DEBUG] Post timestamp: ${timestamp}`);
     
     let flagStatusDescription = '';
     
+    // Check for flag status keywords
     if (postText.includes('double red') || postText.includes('water closed')) {
       flagStatusDescription = 'double red. The water is closed to the public.';
-    } else if (postText.includes('red flag')) {
+    } else if (postText.includes('red flag') || postText.includes('red')) {
       flagStatusDescription = 'red. This color indicates strong surf and/or currents, and you should not enter the water above knee level.';
-    } else if (postText.includes('yellow flag')) {
+    } else if (postText.includes('yellow flag') || postText.includes('yellow')) {
       flagStatusDescription = 'yellow. This color indicates medium hazard, moderate surf and/or strong currents.';
-    } else if (postText.includes('green flag')) {
+    } else if (postText.includes('green flag') || postText.includes('green')) {
       flagStatusDescription = 'green. This color indicates generally low hazard with calm conditions.';
     }
     
     // Check for marine life warnings (purple flag)
-    if (postText.includes('marine life') || postText.includes('jellyfish') || postText.includes('purple flag')) {
+    if (postText.includes('marine life') || postText.includes('jellyfish') || postText.includes('purple')) {
       flagStatusDescription += ' Purple flags are also flying on the beach, indicating dangerous marine life such as jellyfish are present.';
     }
     
     if (!flagStatusDescription) {
-      throw new Error('The script could not determine the current flag color from the retrieved text.');
+      throw new Error('The script could not determine the current flag color from the most recent post.');
     }
     
     return `The beach safety flags in Destin are ${flagStatusDescription}`;
