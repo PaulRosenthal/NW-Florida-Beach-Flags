@@ -22,9 +22,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.x'
-          cache: 'npm'
       - name: Install Dependencies
-        run: npm ci
+        run: npm install
         working-directory: current-flag-status/destin
       - name: Run Flag Status Retrieval Script
         run: node retrieve-current-flag-status.js
