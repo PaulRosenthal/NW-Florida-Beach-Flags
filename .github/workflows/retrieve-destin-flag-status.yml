@@ -36,8 +36,8 @@ jobs:
         
       - name: Commit Flag Status File
         run: |
-          git config --global user.name 'GitHub Actions Bot'
-          git config --global user.email 'actions@github.com'
+          git config --global user.name 'Paul Rosenthal'
+          git config --global user.email 'Paul.H.Rosenthal@iCloud.com'
           git diff --quiet flag-status/destin.txt \
           || (git add flag-status/destin.txt \
               && git commit -m "[Automatic Commit] Update Destin Flag Status" \
