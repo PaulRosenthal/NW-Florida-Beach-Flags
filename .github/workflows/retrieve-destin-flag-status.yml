@@ -23,7 +23,6 @@ jobs:
         with:
           node-version: '22.x'
           cache: 'npm'
-          cache-dependency-path: current-flag-status/destin/package-lock.json
       - name: Install Dependencies
         run: npm ci
         working-directory: current-flag-status/destin
