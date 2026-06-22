@@ -1,0 +1,1 @@
+Panama City Beach flag status will be written here by GitHub Actions.
