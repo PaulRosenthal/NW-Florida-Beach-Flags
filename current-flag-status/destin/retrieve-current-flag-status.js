@@ -24,31 +24,23 @@ async function getDetailedFlagDescription(flag_status) {
 }
 
 async function getFlagStatus() {
-    // 1. Launch with realistic options
     const browser = await chromium.launch({ headless: true });
     
-    // 2. Emulate a standard mobile device, which often has less aggressive bot detection
+    // We use a mobile-optimized context
     const context = await browser.newContext({
         userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
         viewport: { width: 390, height: 844 },
-        deviceScaleFactor: 3,
-        isMobile: true,
-        hasTouch: true,
-        locale: 'en-US',
-        timezoneId: 'America/Chicago'
     });
 
     const page = await context.newPage();
     
     try {
-        console.log("Navigating to Facebook...");
-        await page.goto('https://www.facebook.com/destinbeachsafety/', { waitUntil: 'domcontentloaded' });
+        console.log("Navigating to Mobile Facebook...");
+        // Use the mobile site URL
+        await page.goto('https://m.facebook.com/destinbeachsafety/', { waitUntil: 'domcontentloaded' });
         
-        // Wait for page to settle and simulate "reading" time
-        await page.waitForTimeout(6000); 
-        
-        // Try a broader selector in case the feed structure varies
-        const postLocator = page.locator('div[role="article"]').first();
+        // Wait for the article element (m.facebook uses standard <article> tags)
+        const postLocator = page.locator('article').first();
         await postLocator.waitFor({ state: 'visible', timeout: 20000 });
         
         const postContent = await postLocator.innerText();
@@ -57,17 +49,15 @@ async function getFlagStatus() {
         console.log(postContent);
         console.log("-------------------------------");
         
-        if (!postContent || postContent.trim().length < 5) {
-            throw new Error("Empty post content detected.");
-        }
-
         const result = await getDetailedFlagDescription(postContent);
         
         const outputFilePath = path.join(__dirname, '..', '..', 'flag-status', 'destin.txt');
-        fs.mkdirSync(path.dirname(outputFilePath), { recursive: true });
-        fs.writeFileSync(outputFilePath, result);
+        if (!fs.existsSync(path.dirname(outputFilePath))) {
+            fs.mkdirSync(path.dirname(outputFilePath), { recursive: true });
+        }
         
-        console.log("File saved successfully.");
+        fs.writeFileSync(outputFilePath, result);
+        console.log("Result saved:", result);
         
     } catch (error) {
         console.error("Scraping failed:", error);
