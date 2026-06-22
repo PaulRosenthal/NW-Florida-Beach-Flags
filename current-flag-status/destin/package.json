@@ -1,16 +1,12 @@
 {
   "name": "destin-flag-status",
   "version": "1.0.0",
-  "description": "Retrieves Destin beach flag status from Facebook and writes it to a text file.",
+  "description": "Retrieves Destin beach flag status via Apify",
   "main": "retrieve-current-flag-status.js",
   "scripts": {
-    "start": "node retrieve-current-flag-status.js",
-    "install-browsers": "npx playwright install chromium"
-  },
-  "engines": {
-    "node": "^22.0.0"
+    "start": "node retrieve-current-flag-status.js"
   },
   "dependencies": {
-    "playwright": "^1.44.0"
+    "apify-client": "^2.9.0"
   }
 }
