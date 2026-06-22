@@ -8,12 +8,18 @@ on:
     - cron: "30 * * * *" # Runs 30 minutes past every hour
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   populate-current-flag-status:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@v4
         with:
           node-version: '22.x'
           cache: 'npm'
