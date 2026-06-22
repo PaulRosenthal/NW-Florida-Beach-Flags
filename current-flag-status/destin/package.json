@@ -1,0 +1,16 @@
+{
+  "name": "destin-flag-status",
+  "version": "1.0.0",
+  "description": "Retrieves Destin beach flag status from Facebook and writes it to a text file.",
+  "main": "retrieve-current-flag-status.js",
+  "scripts": {
+    "start": "node retrieve-current-flag-status.js"
+  },
+  "engines": {
+    "node": "^22.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.18.0",
+    "jsdom": "^29.1.1"
+  }
+}
