@@ -1,0 +1,40 @@
+name: Retrieve Destin, Florida Beach Flag Status
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "30 * * * *" # Runs 30 minutes past every hour
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  populate-current-flag-status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: current-flag-status/destin/package-lock.json
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: current-flag-status/destin
+      - name: Run Flag Status Retrieval Script
+        run: node retrieve-current-flag-status.js
+        working-directory: current-flag-status/destin
+      - name: Commit Flag Status File
+        run: |
+          git config --global user.name 'Paul Rosenthal'
+          git config --global user.email 'Paul.H.Rosenthal@iCloud.com'
+          git diff --quiet flag-status/destin.txt \
+          || (git add flag-status/destin.txt \
+              && git commit -m "[Automatic Commit] Update Destin Flag Status" \
+              && git push)
