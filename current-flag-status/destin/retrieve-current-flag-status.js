@@ -32,7 +32,7 @@ async function getFlagDescription(url) {
     if (timeElement) {
       timestamp = timeElement.getAttribute('aria-label') || timeElement.textContent || timeElement.getAttribute('data-utime');
     }
-    console.log(`[DEBUG] Post timestamp: ${timestamp}`);
+    console.log(`Post timestamp: ${timestamp}`);
     
     let flagStatusDescription = '';
     
