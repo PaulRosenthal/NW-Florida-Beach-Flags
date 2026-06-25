@@ -1,4 +1,5 @@
 const { ApifyClient } = require('apify-client');
+const Tesseract = require('tesseract.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -6,7 +7,6 @@ async function getDetailedFlagDescription(flag_status) {
     const text = flag_status.toLowerCase();
     let description = "the current flag status could not be determined from the latest post.";
     
-    // Explicitly prioritizing "closed" or "double red" strings
     if (text.includes("double red") || text.includes("water closed") || text.includes("closed")) {
         description = "double red. The water is closed to the public";
     } else if (text.includes("red")) {
@@ -22,6 +22,22 @@ async function getDetailedFlagDescription(flag_status) {
     }
 
     return `The beach safety flags in Destin are ${description}.`;
+}
+
+// Helper function to extract text out of an image URL using Tesseract
+async function extractTextFromImage(imageUrl) {
+    if (!imageUrl) return "";
+    try {
+        console.log(`Extracting text from image URL: ${imageUrl}`);
+        const { data: { text } } = await Tesseract.recognize(imageUrl, 'eng');
+        console.log("--- DEBUG: Raw OCR Text Output ---");
+        console.log(text);
+        console.log("----------------------------------");
+        return text;
+    } catch (ocrError) {
+        console.error("OCR Processing failed:", ocrError.message);
+        return "";
+    }
 }
 
 async function getFlagStatus() {
@@ -51,19 +67,38 @@ async function getFlagStatus() {
             throw new Error("Apify returned no posts.");
         }
 
-        // Search the 3 retrieved items for a post that mentions "flag" OR "closed"
-        const actualFlagPost = items.find(item => {
+        // 1. First pass: Find a post that explicitly contains standard text matching keywords
+        let targetPost = items.find(item => {
             const content = (item.text || item.message || '').toLowerCase();
             return content.includes('flag') || content.includes('closed');
         });
 
-        // Fall back to the very first post if neither keyword was found
-        const targetPost = actualFlagPost || items[0];
-        const postText = targetPost.text || targetPost.message || '';
+        let postText = "";
+
+        // 2. Second pass: If no matching text post was found, look at the very first post for images
+        if (!targetPost) {
+            console.log("No text matching 'flag' or 'closed' found. Checking for image attachments...");
+            const firstItem = items[0];
+            
+            // Defensively look for image URLs within typical Apify Facebook output structures
+            const imageUrl = firstItem.mediaUrl || 
+                             (firstItem.images && firstItem.images[0]) || 
+                             (firstItem.attachments && firstItem.attachments[0]?.media?.image?.src);
+
+            if (imageUrl) {
+                // Run OCR if an image exists
+                postText = await extractTextFromImage(imageUrl);
+            } else {
+                // Fallback to text string if no image payload components exist
+                postText = firstItem.text || firstItem.message || '';
+            }
+        } else {
+            postText = targetPost.text || targetPost.message || '';
+        }
         
-        console.log("--- DEBUG: Selected Post Text ---");
+        console.log("--- DEBUG: Final Text Selected for Processing ---");
         console.log(postText);
-        console.log("----------------------------------");
+        console.log("-------------------------------------------------");
 
         const result = await getDetailedFlagDescription(postText);
         
@@ -76,7 +111,7 @@ async function getFlagStatus() {
         console.log("File saved successfully with parsed status:", result);
 
     } catch (error) {
-        console.error("Failed to retrieve flag status via Apify:");
+        console.error("Failed to retrieve flag status:");
         console.error(error.message);
         process.exit(1);
     }
