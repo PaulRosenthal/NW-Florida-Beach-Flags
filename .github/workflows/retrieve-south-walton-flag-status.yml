@@ -34,5 +34,5 @@ jobs:
           git config --global user.email 'Paul.H.Rosenthal@iCloud.com'
           git diff --quiet flag-status/south-walton.txt \
           || (git add flag-status/south-walton.txt \
-              && git commit -m "[Automatic Commit] Update Beach Flag Status" \
+              && git commit -m "[Automatic Commit] Update South Walton Flag Status" \
               && git push)
