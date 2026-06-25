@@ -18,26 +18,26 @@ async function extractTextFromImage(imageUrl) {
 
 /**
  * Parses the raw extracted text and converts it into your detailed output text.
- * NOTE: Replace the interior logic here with your existing AI/Parser integration.
  */
-async function getDetailedFlagDescription(text) {
-    const lower = text.toLowerCase();
-    let color = "unknown";
+async function getDetailedFlagDescription(flag_status) {
+    const text = flag_status.toLowerCase();
+    let description = "the current flag status could not be determined from the latest post.";
     
-    if (lower.includes('double red')) color = "double red";
-    else if (lower.includes('red')) color = "red";
-    else if (lower.includes('yellow')) color = "yellow";
-    else if (lower.includes('green')) color = "green";
-    else if (lower.includes('purple')) color = "purple";
-
-    // Example return structures matching your project requirements
-    if (color === "red") {
-        return "The beach safety flags in Destin are red. This color indicates strong surf and/or currents, and you should not enter the water above knee level.";
-    } else if (color === "yellow") {
-        return "The beach safety flags in Destin are yellow. This color indicates medium hazard with moderate surf and/or currents. Always swim near a lifeguard.";
+    if (text.includes("double red") || text.includes("water closed") || text.includes("closed")) {
+        description = "double red. The water is closed to the public";
+    } else if (text.includes("red")) {
+        description = "red. This color indicates strong surf and/or currents, and you should not enter the water above knee level";
+    } else if (text.includes("yellow")) {
+        description = "yellow. This color indicates medium hazard, moderate surf and/or strong currents";
+    } else if (text.includes("green")) {
+        description = "green. This color indicates generally low hazard with calm conditions";
     }
-    
-    return `Beach safety update text detected: ${text}`;
+
+    if (text.includes("marine") || text.includes("jellyfish") || text.includes("purple")) {
+        description += ". Purple flags are also flying on the beach, indicating dangerous marine life such as jellyfish are present";
+    }
+
+    return `The beach safety flags in Destin are ${description}.`;
 }
 
 async function getFlagStatus() {
@@ -74,31 +74,34 @@ async function getFlagStatus() {
             const postText = item.text || item.message || '';
             let ocrText = '';
 
-            // Find image attachment pathing from the payload variations
-            const imageUrl = item.mediaUrl || 
+            // Resolve Apify's deeply nested photo URI structure first, then check common fallbacks
+            const imageUrl = item.media?.[0]?.photo_image?.uri || 
+                             item.mediaUrl || 
                              (item.images && item.images[0]) || 
                              (item.attachments && item.attachments[0]?.media?.image?.src);
 
             if (imageUrl) {
                 console.log(`Running OCR on post image: ${imageUrl}`);
                 ocrText = await extractTextFromImage(imageUrl);
+            } else {
+                console.log("No image asset detected on this specific post object.");
             }
 
-            // Combine both sources so layout gaps don't cause order-of-operation errors
+            // Merge both string payloads together to catch layout gaps safely
             const combinedContent = `${postText}\n${ocrText}`.trim();
             const lowerCombined = combinedContent.toLowerCase();
 
-            // If this post contains any flag signature context, lock onto it
+            // Evaluate the merged string for required target keywords
             if (lowerCombined.includes('flag') || lowerCombined.includes('closed') || lowerCombined.includes('surf')) {
                 console.log("Found matching flag updates in this post block.");
                 selectedText = combinedContent;
-                break; // Escape the loop instantly: we have our newest target data
+                break; // Exit the chronological evaluation loop instantly
             }
 
             console.log("Post did not contain flag updates. Checking older post...");
         }
 
-        // Ultimate structural safety fallback
+        // Ultimate structural safety fallback if no keywords matched across any posts
         if (!selectedText) {
             console.log("Warning: No recent posts matched flag keywords. Falling back to newest post text.");
             selectedText = items[0].text || items[0].message || '';
@@ -108,10 +111,9 @@ async function getFlagStatus() {
         console.log(selectedText);
         console.log("-------------------------------------------------");
 
-        // Generate the finalized asset report string
+        // Parse text into localized asset configuration output format
         const result = await getDetailedFlagDescription(selectedText);
         
-        // Map target location matching your repo architecture
         const outputFilePath = path.join(__dirname, '..', '..', 'flag-status', 'destin.txt');
         if (!fs.existsSync(path.dirname(outputFilePath))) {
             fs.mkdirSync(path.dirname(outputFilePath), { recursive: true });
@@ -127,5 +129,4 @@ async function getFlagStatus() {
     }
 }
 
-// Fire script execution
 getFlagStatus();
