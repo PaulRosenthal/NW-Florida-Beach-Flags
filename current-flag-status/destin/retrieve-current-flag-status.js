@@ -4,11 +4,25 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Helper function to extract text from an image URL using Tesseract OCR
+ * Helper function to download an image and extract text via Tesseract OCR
  */
 async function extractTextFromImage(imageUrl) {
     try {
-        const { data: { text } } = await Tesseract.recognize(imageUrl, 'eng');
+        // Download the image directly to a buffer to bypass CDN parsing bugs
+        const response = await fetch(imageUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch image asset. Status: ${response.status}`);
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Execute OCR processing using the raw image buffer
+        const { data: { text } } = await Tesseract.recognize(buffer, 'eng');
+        console.log(`[OCR Debug] Raw text extracted: "${text.replace(/\n/g, ' ').trim()}"`);
         return text;
     } catch (error) {
         console.error(`[OCR Error] Failed to process image (${imageUrl}):`, error.message);
@@ -74,7 +88,6 @@ async function getFlagStatus() {
             const postText = item.text || item.message || '';
             let ocrText = '';
 
-            // Resolve Apify's deeply nested photo URI structure first, then check common fallbacks
             const imageUrl = item.media?.[0]?.photo_image?.uri || 
                              item.mediaUrl || 
                              (item.images && item.images[0]) || 
@@ -87,21 +100,20 @@ async function getFlagStatus() {
                 console.log("No image asset detected on this specific post object.");
             }
 
-            // Merge both string payloads together to catch layout gaps safely
+            // Merge text and image strings to catch layout updates safely
             const combinedContent = `${postText}\n${ocrText}`.trim();
             const lowerCombined = combinedContent.toLowerCase();
 
-            // Evaluate the merged string for required target keywords
+            // Evaluate the merged string for validation keywords
             if (lowerCombined.includes('flag') || lowerCombined.includes('closed') || lowerCombined.includes('surf')) {
                 console.log("Found matching flag updates in this post block.");
                 selectedText = combinedContent;
-                break; // Exit the chronological evaluation loop instantly
+                break; 
             }
 
             console.log("Post did not contain flag updates. Checking older post...");
         }
 
-        // Ultimate structural safety fallback if no keywords matched across any posts
         if (!selectedText) {
             console.log("Warning: No recent posts matched flag keywords. Falling back to newest post text.");
             selectedText = items[0].text || items[0].message || '';
@@ -111,7 +123,6 @@ async function getFlagStatus() {
         console.log(selectedText);
         console.log("-------------------------------------------------");
 
-        // Parse text into localized asset configuration output format
         const result = await getDetailedFlagDescription(selectedText);
         
         const outputFilePath = path.join(__dirname, '..', '..', 'flag-status', 'destin.txt');
