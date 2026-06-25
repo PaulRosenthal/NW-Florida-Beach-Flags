@@ -8,7 +8,6 @@ const path = require('path');
  */
 async function extractTextFromImage(imageUrl) {
     try {
-        // Download the image directly to a buffer to bypass CDN parsing bugs
         const response = await fetch(imageUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
         });
@@ -20,7 +19,6 @@ async function extractTextFromImage(imageUrl) {
         const arrayBuffer = await response.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // Execute OCR processing using the raw image buffer
         const { data: { text } } = await Tesseract.recognize(buffer, 'eng');
         console.log(`[OCR Debug] Raw text extracted: "${text.replace(/\n/g, ' ').trim()}"`);
         return text;
@@ -104,8 +102,16 @@ async function getFlagStatus() {
             const combinedContent = `${postText}\n${ocrText}`.trim();
             const lowerCombined = combinedContent.toLowerCase();
 
-            // Evaluate the merged string for validation keywords
-            if (lowerCombined.includes('flag') || lowerCombined.includes('closed') || lowerCombined.includes('surf')) {
+            // Broadened validation parameters to include specific color names found by OCR
+            if (
+                lowerCombined.includes('flag') || 
+                lowerCombined.includes('closed') || 
+                lowerCombined.includes('surf') ||
+                lowerCombined.includes('yellow') ||
+                lowerCombined.includes('red') ||
+                lowerCombined.includes('green') ||
+                lowerCombined.includes('purple')
+            ) {
                 console.log("Found matching flag updates in this post block.");
                 selectedText = combinedContent;
                 break; 
