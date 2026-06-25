@@ -1,12 +1,13 @@
 {
   "name": "destin-flag-status",
   "version": "1.0.0",
-  "description": "Retrieves Destin beach flag status via Apify",
+  "description": "Retrieves Destin beach flag status via Apify and Tesseract OCR",
   "main": "retrieve-current-flag-status.js",
   "scripts": {
     "start": "node retrieve-current-flag-status.js"
   },
   "dependencies": {
-    "apify-client": "^2.9.0"
+    "apify-client": "^2.9.0",
+    "tesseract.js": "^5.1.0"
   }
 }
