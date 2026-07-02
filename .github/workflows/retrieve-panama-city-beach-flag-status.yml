@@ -5,7 +5,43 @@ on:
     branches:
       - main
   schedule:
-    - cron: "30 * * * *" # Runs 30 minutes past every hour
+    # Daytime (5 AM - 8 PM CT): Every 30 minutes
+    - cron: "0 10 * * *"    # 5:00 AM CT
+    - cron: "30 10 * * *"   # 5:30 AM CT
+    - cron: "0 11 * * *"    # 6:00 AM CT
+    - cron: "30 11 * * *"   # 6:30 AM CT
+    - cron: "0 12 * * *"    # 7:00 AM CT
+    - cron: "30 12 * * *"   # 7:30 AM CT
+    - cron: "0 13 * * *"    # 8:00 AM CT
+    - cron: "30 13 * * *"   # 8:30 AM CT
+    - cron: "0 14 * * *"    # 9:00 AM CT
+    - cron: "30 14 * * *"   # 9:30 AM CT
+    - cron: "0 15 * * *"    # 10:00 AM CT
+    - cron: "30 15 * * *"   # 10:30 AM CT
+    - cron: "0 16 * * *"    # 11:00 AM CT
+    - cron: "30 16 * * *"   # 11:30 AM CT
+    - cron: "0 17 * * *"    # 12:00 PM CT
+    - cron: "30 17 * * *"   # 12:30 PM CT
+    - cron: "0 18 * * *"    # 1:00 PM CT
+    - cron: "30 18 * * *"   # 1:30 PM CT
+    - cron: "0 19 * * *"    # 2:00 PM CT
+    - cron: "30 19 * * *"   # 2:30 PM CT
+    - cron: "0 20 * * *"    # 3:00 PM CT
+    - cron: "30 20 * * *"   # 3:30 PM CT
+    - cron: "0 21 * * *"    # 4:00 PM CT
+    - cron: "30 21 * * *"   # 4:30 PM CT
+    - cron: "0 22 * * *"    # 5:00 PM CT
+    - cron: "30 22 * * *"   # 5:30 PM CT
+    - cron: "0 23 * * *"    # 6:00 PM CT
+    - cron: "30 23 * * *"   # 6:30 PM CT
+    - cron: "0 0 * * *"     # 7:00 PM CT
+    - cron: "30 0 * * *"    # 7:30 PM CT
+    # Nighttime (8 PM - 5 AM CT): Every 2 hours
+    - cron: "0 1 * * *"     # 8:00 PM CT
+    - cron: "0 3 * * *"     # 10:00 PM CT
+    - cron: "0 5 * * *"     # 12:00 AM CT
+    - cron: "0 7 * * *"     # 2:00 AM CT
+    - cron: "0 9 * * *"     # 4:00 AM CT
   workflow_dispatch:
 
 permissions:
