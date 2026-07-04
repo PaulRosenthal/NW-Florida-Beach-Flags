@@ -35,13 +35,18 @@ async function getDetailedFlagDescription(flag_status) {
     const text = flag_status.toLowerCase();
     let description = "the current flag status could not be determined from the latest post.";
     
+    // Check for "double red"
     if (text.includes("double red") || text.includes("water closed") || text.includes("closed")) {
         description = "double red. The water is closed to the public";
-    } else if (text.includes("red")) {
+    } 
+    // Use regex \bred\b to match the word "red" exactly, ignoring words like "prepared"
+    else if (text.match(/\bred\b/)) {
         description = "red. This color indicates strong surf and/or currents, and you should not enter the water above knee level";
-    } else if (text.includes("yellow")) {
+    } 
+    else if (text.includes("yellow")) {
         description = "yellow. This color indicates medium hazard, moderate surf and/or strong currents";
-    } else if (text.includes("green")) {
+    } 
+    else if (text.includes("green")) {
         description = "green. This color indicates generally low hazard with calm conditions";
     }
 
@@ -81,7 +86,6 @@ async function getFlagStatus() {
 
         let selectedText = "";
 
-        // Loop through posts chronologically: Newest (Index 0) to Oldest (Index 2)
         for (const item of items) {
             const postText = item.text || item.message || '';
             let ocrText = '';
@@ -98,11 +102,9 @@ async function getFlagStatus() {
                 console.log("No image asset detected on this specific post object.");
             }
 
-            // Merge text and image strings to catch layout updates safely
             const combinedContent = `${postText}\n${ocrText}`.trim();
             const lowerCombined = combinedContent.toLowerCase();
 
-            // Broadened validation parameters to include specific color names found by OCR
             if (
                 lowerCombined.includes('flag') || 
                 lowerCombined.includes('closed') || 
