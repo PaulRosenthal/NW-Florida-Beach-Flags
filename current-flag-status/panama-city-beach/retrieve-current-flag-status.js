@@ -4,7 +4,16 @@ const fs = require('fs');
 const path = require('path');
 
 async function getFlagDescription(url) {
-  const response = await axios.get(url);
+  const config = {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+      'Referer': 'https://www.google.com/'
+    }
+  };
+
+  const response = await axios.get(url, config);
   const dom = new JSDOM(response.data);
   const flagStatusElement = dom.window.document.querySelector('.flag-description');
 
@@ -38,18 +47,23 @@ async function getFlagDescription(url) {
 
 async function main() {
   const url = 'https://www.visitpanamacitybeach.com/beach-alerts-iframe/';
-  const result = await getFlagDescription(url);
-  console.log(result);
+  try {
+    const result = await getFlagDescription(url);
+    console.log(result);
 
-  const outputFilePath = path.join(__dirname, '..', '..', 'flag-status', 'panama-city-beach.txt');
-  fs.writeFile(outputFilePath, result, (err) => {
-    if (err) {
-      console.error(err);
-      process.exitCode = 1;
-    } else {
-      console.log('The flag status has been saved to the file:', outputFilePath);
-    }
-  });
+    const outputFilePath = path.join(__dirname, '..', '..', 'flag-status', 'panama-city-beach.txt');
+    fs.writeFile(outputFilePath, result, (err) => {
+      if (err) {
+        console.error(err);
+        process.exitCode = 1;
+      } else {
+        console.log('The flag status has been saved to the file:', outputFilePath);
+      }
+    });
+  } catch (error) {
+    console.error('Error:', error.message);
+    process.exitCode = 1;
+  }
 }
 
 main();
