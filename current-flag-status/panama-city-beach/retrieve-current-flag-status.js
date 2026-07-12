@@ -3,12 +3,13 @@ const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
 
-const URL_TO_FETCH = 'https://www.visitpanamacitybeach.com/beach-alerts-iframe/';
+// The original source, https://www.visitpanamacitybeach.com/beach-alerts-iframe/,
+// returns a hard 403 "Access Denied" from Akamai for this project's requests
+// (confirmed via response headers/body — an edge-level block, not a bot-fingerprint
+// issue). The public-facing conditions page below shows the same information and
+// is not behind that same restriction.
+const URL_TO_FETCH = 'https://www.visitpanamacitybeach.com/stay-pcb-current/';
 
-// Headers modeled on a real desktop Chrome browser request. Many WAFs (Cloudflare,
-// Akamai, Imperva, etc.) fingerprint bare HTTP-library requests (e.g. axios's
-// default "axios/1.x.x" User-Agent, missing Accept/Accept-Language/Referer) and
-// block them outright, independent of the source IP.
 const BROWSER_HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
@@ -16,11 +17,10 @@ const BROWSER_HEADERS = {
   Accept:
     'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.9',
-  Referer: 'https://www.visitpanamacitybeach.com/',
   'Upgrade-Insecure-Requests': '1',
-  'Sec-Fetch-Dest': 'iframe',
+  'Sec-Fetch-Dest': 'document',
   'Sec-Fetch-Mode': 'navigate',
-  'Sec-Fetch-Site': 'same-origin',
+  'Sec-Fetch-Site': 'none',
 };
 
 const MAX_ATTEMPTS = 3;
@@ -38,8 +38,6 @@ async function fetchWithRetry(url) {
       const response = await axios.get(url, {
         headers: BROWSER_HEADERS,
         timeout: 15000,
-        // Treat any status as "resolved" so we can inspect and log it ourselves
-        // instead of axios throwing a bare, low-detail error.
         validateStatus: () => true,
       });
 
@@ -47,8 +45,6 @@ async function fetchWithRetry(url) {
         return response;
       }
 
-      // Log as much as we can about the failure so the next investigation
-      // doesn't start from scratch.
       console.error(`Attempt ${attempt}/${MAX_ATTEMPTS} failed with status ${response.status}`);
       console.error('Response headers:', JSON.stringify(response.headers, null, 2));
       const bodySnippet =
@@ -57,7 +53,6 @@ async function fetchWithRetry(url) {
 
       lastError = new Error(`Request failed with status code ${response.status}`);
     } catch (err) {
-      // Network-level errors (timeout, DNS, connection reset, etc.)
       console.error(`Attempt ${attempt}/${MAX_ATTEMPTS} threw an error:`, err.message);
       lastError = err;
     }
@@ -71,34 +66,77 @@ async function fetchWithRetry(url) {
   throw lastError;
 }
 
+// Maps a raw flag color label (as displayed on the page, e.g. "Yellow Flag",
+// "Double Red Flag") to the descriptive sentence this project has always output.
+function describeFlagColor(rawLabel) {
+  const text = rawLabel.toLowerCase();
+  let description = '';
+
+  if (text.includes('double red')) {
+    description = 'double red. The water is closed to the public.';
+  } else if (text.includes('red')) {
+    description = 'red. This color indicates strong surf and/or currents, and you should not enter the water above knee level.';
+  } else if (text.includes('yellow')) {
+    description = 'yellow. This color indicates medium hazard, moderate surf and/or strong currents.';
+  } else if (text.includes('green')) {
+    description = 'green. This color indicates generally low hazard with calm conditions.';
+  }
+
+  if (text.includes('purple')) {
+    description += (description ? ' ' : '') + 'Purple flags are also flying on the beach, indicating dangerous marine life such as jellyfish are present.';
+  }
+
+  return description;
+}
+
 async function getFlagDescription(url) {
   const response = await fetchWithRetry(url);
   const dom = new JSDOM(response.data);
-  const flagStatusElement = dom.window.document.querySelector('.flag-description');
+  const document = dom.window.document;
 
-  if (!flagStatusElement) {
-    throw new Error('No flag description found in the flag status text that was retrieved.');
+  // Primary signal: the "Current Beach Conditions:" heading is followed
+  // directly by the human-readable flag label (e.g. "Yellow Flag").
+  const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, strong'));
+  const conditionsHeading = headings.find((el) =>
+    el.textContent.trim().toLowerCase().startsWith('current beach conditions')
+  );
+
+  let rawLabel = '';
+  if (conditionsHeading) {
+    // The label is usually the next sibling element with visible text.
+    let node = conditionsHeading.nextElementSibling;
+    while (node && !node.textContent.trim()) {
+      node = node.nextElementSibling;
+    }
+    if (node) {
+      rawLabel = node.textContent.trim();
+    }
   }
 
-  const statusText = flagStatusElement.textContent.toLowerCase();
-  let flagStatusDescription = '';
-
-  if (statusText.includes('medium') || statusText.includes('yellow')) {
-    flagStatusDescription = 'yellow. This color indicates medium hazard, moderate surf and/or strong currents.';
-  } else if (statusText.includes('low') || statusText.includes('green')) {
-    flagStatusDescription = 'green. This color indicates generally low hazard with calm conditions.';
-  } else if (statusText.includes('closed') || statusText.includes('double red') || statusText.includes('high hazard')) {
-    flagStatusDescription = 'double red. The water is closed to the public.';
-  } else if (statusText.includes('strong') || statusText.includes('red') || statusText.includes('high')) {
-    flagStatusDescription = 'red. This color indicates strong surf and/or currents, and you should not enter the water above knee level.';
+  // Fallback / cross-check: pull the color out of the flag image's filename,
+  // e.g. ".../yellow_weather_flag_2x_....png" -> "yellow".
+  let imageColorMatch = '';
+  const flagImage = Array.from(document.querySelectorAll('img')).find((img) =>
+    (img.getAttribute('src') || '').includes('_weather_flag_')
+  );
+  if (flagImage) {
+    const src = flagImage.getAttribute('src');
+    const match = src.match(/\/([a-z_]+?)_weather_flag_/i);
+    if (match) {
+      imageColorMatch = match[1].replace(/_/g, ' ');
+    }
   }
 
-  if (statusText.includes('marine') || statusText.includes('purple')) {
-    flagStatusDescription += ' Purple flags are also flying on the beach, indicating dangerous marine life such as jellyfish are present.';
+  const labelToUse = rawLabel || imageColorMatch;
+
+  if (!labelToUse) {
+    throw new Error('Could not find a current flag condition label or image on the page.');
   }
+
+  const flagStatusDescription = describeFlagColor(labelToUse);
 
   if (!flagStatusDescription) {
-    throw new Error('The script could not determine the current flag color from the retrieved text.');
+    throw new Error(`The script could not map the retrieved label ("${labelToUse}") to a known flag color.`);
   }
 
   return `The beach safety flags in Panama City Beach are ${flagStatusDescription}`;
