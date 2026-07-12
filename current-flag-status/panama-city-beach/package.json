@@ -10,8 +10,7 @@
     "node": "^22.0.0"
   },
   "dependencies": {
-    "puppeteer": "^22.0.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.2.4"
+    "axios": "^1.18.0",
+    "jsdom": "^29.1.1"
   }
 }
