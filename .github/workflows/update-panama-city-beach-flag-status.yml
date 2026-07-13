@@ -1,0 +1,36 @@
+name: Update Panama City Beach, Florida Beach Flag Status
+
+on:
+  repository_dispatch:
+    types: [panama-city-flags-update]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Update Beach Status File
+        run: |
+          # Ensure the directory exists
+          mkdir -p flag-status
+          
+          echo "${{ github.event.client_payload.message }}" > flag-status/panama-city-beach.txt
+          
+          # Configure Git
+          git config user.name "Paul Rosenthal"
+          git config user.email "Paul.H.Rosenthal@iCloud.com"
+          
+          # Stage the file
+          git add flag-status/destin.txt
+          
+          if git diff --cached --quiet; then
+            echo "No changes detected. Skipping commit."
+          else
+            git commit -m "[Automatic Commit] Update Panama City Beach Flag Status"
+            git push
+          fi
