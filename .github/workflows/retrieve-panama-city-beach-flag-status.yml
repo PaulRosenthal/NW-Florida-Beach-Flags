@@ -20,13 +20,19 @@ jobs:
           mkdir -p flag-status
           
           # Write the message payload to the text file
-          echo "${{ github.event.client_payload.message }}" > flag-status/panama-city-beach.txt
+          # FIXED: Now consistently using 'destin.txt'
+          echo "${{ github.event.client_payload.message }}" > flag-status/destin.txt
           
           # Configure Git
           git config user.name "Paul Rosenthal"
           git config user.email "Paul.H.Rosenthal@iCloud.com"
           
-          # Add, commit, and push changes
+          # Stage the file
           git add flag-status/destin.txt
-          git commit -m "[Automatic Commit] Update Destin Beach Flag Status"
-          git push
+          
+          if git diff --cached --quiet; then
+            echo "No changes detected. Skipping commit."
+          else
+            git commit -m "[Automatic Commit] Update Destin Beach Flag Status"
+            git push
+          fi
