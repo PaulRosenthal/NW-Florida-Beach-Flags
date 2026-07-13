@@ -30,28 +30,42 @@ async function getFlagDescription() {
   let browser;
   try {
     console.log('Launching Playwright browser...');
-    browser = await chromium.launch({ 
+    browser = await chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
 
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
       viewport: { width: 1280, height: 800 },
       locale: 'en-US',
     });
 
     const page = await context.newPage();
-    
+
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
     });
 
-    console.log(`Navigating to ${URL_TO_FETCH}`);
-    await page.goto(URL_TO_FETCH, { 
-      waitUntil: 'networkidle', 
-      timeout: 30000 
+    // Log every network response so we can see if any internal request
+    // (e.g. an AJAX call the widget makes to populate the flag color) fails.
+    page.on('response', (response) => {
+      const status = response.status();
+      if (status >= 400) {
+        console.log(`[NETWORK ${status}] ${response.url()}`);
+      }
     });
+
+    console.log(`Navigating to ${URL_TO_FETCH}`);
+    await page.goto(URL_TO_FETCH, {
+      waitUntil: 'networkidle',
+      timeout: 30000,
+    });
+
+    // Give any late client-side rendering a moment to settle, in case
+    // networkidle fired before the widget finished populating.
+    await page.waitForTimeout(3000);
 
     const html = await page.content();
     const dom = new JSDOM(html);
@@ -59,9 +73,15 @@ async function getFlagDescription() {
 
     let rawLabel = '';
     const conditionsHeading = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, strong, div'))
-      .find(el => el.textContent.trim().toLowerCase().startsWith('current beach conditions'));
+      .find((el) => el.textContent.trim().toLowerCase().startsWith('current beach conditions'));
 
     if (conditionsHeading) {
+      console.log('Found "Current Beach Conditions" element. Its outerHTML:');
+      console.log(conditionsHeading.outerHTML.slice(0, 500));
+
+      console.log('Parent element outerHTML (first 2000 chars):');
+      console.log((conditionsHeading.parentElement ? conditionsHeading.parentElement.outerHTML : '(no parent)').slice(0, 2000));
+
       let node = conditionsHeading.nextElementSibling;
       while (node && !node.textContent.trim()) {
         node = node.nextElementSibling;
@@ -69,22 +89,30 @@ async function getFlagDescription() {
       if (node) {
         rawLabel = node.textContent.trim();
       }
+    } else {
+      console.log('Could not find any element starting with "current beach conditions".');
     }
 
     if (!rawLabel) {
-      const flagImage = Array.from(document.querySelectorAll('img')).find(img => 
+      const flagImage = Array.from(document.querySelectorAll('img')).find((img) =>
         (img.getAttribute('src') || '').includes('_weather_flag_')
       );
       if (flagImage) {
+        console.log('Found flag image element:', flagImage.outerHTML);
         const src = flagImage.getAttribute('src');
         const match = src.match(/\/([a-z_]+?)_weather_flag_/i);
         if (match) {
           rawLabel = match[1].replace(/_/g, ' ');
         }
+      } else {
+        console.log('Could not find any image with "_weather_flag_" in its src.');
       }
     }
 
     if (!rawLabel) {
+      // Dump a chunk of the body text so we can see what's actually there.
+      console.log('--- Body text snippet (first 3000 chars) ---');
+      console.log(document.body.textContent.replace(/\s+/g, ' ').trim().slice(0, 3000));
       throw new Error('Could not find current flag condition on the page.');
     }
 
@@ -96,7 +124,6 @@ async function getFlagDescription() {
     }
 
     return `The beach safety flags in Panama City Beach are ${flagStatusDescription}`;
-
   } catch (err) {
     console.error('Error during Playwright scraping:', err.message);
     throw err;
