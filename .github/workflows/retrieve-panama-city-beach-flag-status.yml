@@ -1,79 +1,32 @@
-name: Retrieve Panama City Beach, Florida Beach Flag Status
+name: Update Panama City Beach, Florida Beach Flag Status
 
 on:
-  push:
-    branches:
-      - main
-  schedule:
-    # Daytime (5 AM - 8 PM CT): Every 30 minutes
-    - cron: "0 10 * * *"    # 5:00 AM CT
-    - cron: "30 10 * * *"   # 5:30 AM CT
-    - cron: "0 11 * * *"    # 6:00 AM CT
-    - cron: "30 11 * * *"   # 6:30 AM CT
-    - cron: "0 12 * * *"    # 7:00 AM CT
-    - cron: "30 12 * * *"   # 7:30 AM CT
-    - cron: "0 13 * * *"    # 8:00 AM CT
-    - cron: "30 13 * * *"   # 8:30 AM CT
-    - cron: "0 14 * * *"    # 9:00 AM CT
-    - cron: "30 14 * * *"   # 9:30 AM CT
-    - cron: "0 15 * * *"    # 10:00 AM CT
-    - cron: "30 15 * * *"   # 10:30 AM CT
-    - cron: "0 16 * * *"    # 11:00 AM CT
-    - cron: "30 16 * * *"   # 11:30 AM CT
-    - cron: "0 17 * * *"    # 12:00 PM CT
-    - cron: "30 17 * * *"   # 12:30 PM CT
-    - cron: "0 18 * * *"    # 1:00 PM CT
-    - cron: "30 18 * * *"   # 1:30 PM CT
-    - cron: "0 19 * * *"    # 2:00 PM CT
-    - cron: "30 19 * * *"   # 2:30 PM CT
-    - cron: "0 20 * * *"    # 3:00 PM CT
-    - cron: "30 20 * * *"   # 3:30 PM CT
-    - cron: "0 21 * * *"    # 4:00 PM CT
-    - cron: "30 21 * * *"   # 4:30 PM CT
-    - cron: "0 22 * * *"    # 5:00 PM CT
-    - cron: "30 22 * * *"   # 5:30 PM CT
-    - cron: "0 23 * * *"    # 6:00 PM CT
-    - cron: "30 23 * * *"   # 6:30 PM CT
-    - cron: "0 0 * * *"     # 7:00 PM CT
-    - cron: "30 0 * * *"    # 7:30 PM CT
-    # Nighttime (8 PM - 5 AM CT): Every 2 hours
-    - cron: "0 1 * * *"     # 8:00 PM CT
-    - cron: "0 3 * * *"     # 10:00 PM CT
-    - cron: "0 5 * * *"     # 12:00 AM CT
-    - cron: "0 7 * * *"     # 2:00 AM CT
-    - cron: "0 9 * * *"     # 4:00 AM CT
-  workflow_dispatch:
+  repository_dispatch:
+    types: [beach-update]
 
 permissions:
   contents: write
 
 jobs:
-  populate-current-flag-status:
+  update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.x'
-          cache: 'npm'
-          cache-dependency-path: current-flag-status/panama-city-beach/package-lock.json
-      - name: Install Dependencies
-        run: npm ci
-        working-directory: current-flag-status/panama-city-beach
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
-        working-directory: current-flag-status/panama-city-beach
-      - name: Run Flag Status Retrieval Script
-        run: node retrieve-current-flag-status.js
-        working-directory: current-flag-status/panama-city-beach
-      - name: Commit Flag Status File
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Update Beach Status File
         run: |
-          git config --global user.name 'Paul Rosenthal'
-          git config --global user.email 'Paul.H.Rosenthal@iCloud.com'
-          git diff --quiet flag-status/panama-city-beach.txt \
-          || (git add flag-status/panama-city-beach.txt \
-              && git commit -m "[Automatic Commit] Update Panama City Beach Flag Status" \
-              && git push)
+          # Ensure the directory exists
+          mkdir -p flag-status
+          
+          # Write the message payload to the text file
+          echo "${{ github.event.client_payload.message }}" > flag-status/panama-city-beach.txt
+          
+          # Configure Git
+          git config user.name "Paul Rosenthal"
+          git config user.email "Paul.H.Rosenthal@iCloud.com"
+          
+          # Add, commit, and push changes
+          git add flag-status/panama-city-beach.txt
+          git commit -m "[Automatic Commit] Update Panama City Beach Flag Status"
+          git push
