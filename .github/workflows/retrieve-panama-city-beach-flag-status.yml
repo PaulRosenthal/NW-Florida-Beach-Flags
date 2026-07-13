@@ -1,8 +1,8 @@
-name: Update Panama City Beach, Florida Beach Flag Status
+name: Update Destin, Florida Beach Flag Status
 
 on:
   repository_dispatch:
-    types: [beach-update]
+    types: [destin-flags-update]
 
 permissions:
   contents: write
