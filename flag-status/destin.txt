@@ -1,3 +1,1 @@
-YELLOW  : Destin
-YELLOW /PURPLE Fort Walton Beach: Purple flag: Hazardous marine life. JELLYFISH 
-Yellow flag: moderate hazards exist, use caution when swimming. Reply STOP to end 
+Destin-Fort Walton Beach: Yellow flag: moderate hazards exist, use caution when swimming. Fort Walton Beach: Purple flag: Hazardous marine life. Reply STOP to end
